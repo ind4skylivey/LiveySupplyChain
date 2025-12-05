@@ -8,6 +8,7 @@ __pycache__/
 .coverage
 htmlcov/
 reports/*.json
+build/
 .DS_Store
 .idea/
 .vscode/
