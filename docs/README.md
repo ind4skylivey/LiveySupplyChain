@@ -1,5 +1,9 @@
 # LiveySupplyChain
 
+<p align="center">
+  <img src="../assets/livey_banner.svg" alt="LiveySupplyChain banner" width="780" height="260" />
+</p>
+
 Composer supply-chain security toolkit with a Python CLI, LiveyScore v3, policy-driven controls, JSON reporting, and an HTML dashboard.
 
 ## Features
