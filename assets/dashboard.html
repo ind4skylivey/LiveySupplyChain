@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiveySupplyChain Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1220;
+      --fg: #e5e7eb;
+      --panel: rgba(255,255,255,0.04);
+      --accent: #7c3aed;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ok: #10b981;
+    }
+    body { margin:0; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+    header { padding: 18px 28px; display:flex; align-items:center; gap:14px; background: linear-gradient(90deg, #0f172a, #111827); }
+    img.logo { height:44px; }
+    main { padding: 18px 28px; }
+    .panel { background: var(--panel); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:16px; backdrop-filter: blur(6px); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:10px; border-bottom:1px solid rgba(255,255,255,0.08); }
+    th { text-align:left; cursor:pointer; }
+    .tag { padding:4px 8px; border-radius:999px; font-size:12px; text-transform:capitalize; }
+    .critical { background:#7f1d1d; color:#fecaca; }
+    .high { background:#7c2d12; color:#ffedd5; }
+    .medium { background:#92400e; color:#fef3c7; }
+    .low { background:#065f46; color:#d1fae5; }
+    .info { background:#0ea5e9; color:#ecfeff; }
+    details { margin-top:6px; }
+    .chart { display:flex; gap:12px; align-items:flex-end; height:120px; }
+    .bar { width:48px; background: var(--accent); text-align:center; border-radius:8px 8px 0 0; }
+    .bar span { display:block; padding:4px; font-size:12px; }
+    .controls { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    input, select { background:#111827; color:var(--fg); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 10px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <img class="logo" src="livey_supplychain_logo.svg" alt="LiveySupplyChain">
+    <div>
+      <div style="font-weight:700; font-size:18px">LiveySupplyChain Dashboard</div>
+      <small id="meta"></small>
+    </div>
+  </header>
+  <main>
+    <div class="controls">
+      <label>Filter severity
+        <select id="severity">
+          <option value="">All</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="info">Info</option>
+        </select>
+      </label>
+      <label>Search
+        <input id="search" type="search" placeholder="package name" />
+      </label>
+      <label>Report JSON
+        <input id="file" type="file" accept="application/json" />
+      </label>
+    </div>
+
+    <div id="charts" class="panel"></div>
+    <div class="panel">
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-sort="package">Package</th>
+            <th data-sort="score">Score</th>
+            <th data-sort="severity">Severity</th>
+            <th>Reasons</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    let report = null;
+    let sortKey = 'score';
+    let sortDir = 'desc';
+
+    function severityClass(s){ return s.toLowerCase(); }
+
+    function renderMeta(){
+      if(!report) return;
+      const m = document.getElementById('meta');
+      m.textContent = `Project: ${report.project} · Generated: ${report.generated_at}`;
+    }
+
+    function renderCharts(){
+      if(!report) return;
+      const el = document.getElementById('charts');
+      const counts = report.summary;
+      const max = Math.max(...Object.values(counts));
+      el.innerHTML = `<div class="chart">${Object.entries(counts).map(([k,v])=>{
+        const h = max ? Math.max(8, (v/max)*100) : 8;
+        return `<div class="bar ${k}" style="height:${h}%"><span>${k}: ${v}</span></div>`;
+      }).join('')}</div>`;
+    }
+
+    function renderTable(){
+      if(!report) return;
+      const tbody = document.querySelector('#table tbody');
+      const severityFilter = document.getElementById('severity').value;
+      const search = document.getElementById('search').value.toLowerCase();
+      let rows = report.findings;
+      if(severityFilter) rows = rows.filter(r=>r.score.severity === severityFilter);
+      if(search) rows = rows.filter(r=>r.package.name.toLowerCase().includes(search));
+      rows = rows.sort((a,b)=>{
+        let av = a.score.total, bv = b.score.total;
+        if(sortKey === 'package'){ av = a.package.name; bv = b.package.name; }
+        if(sortKey === 'severity'){ av = a.score.severity; bv = b.score.severity; }
+        if(av < bv) return sortDir === 'asc' ? -1 : 1;
+        if(av > bv) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      tbody.innerHTML = rows.map(r=>{
+        const reasons = r.score.reasons.map(x=>`<li>${x}</li>`).join('');
+        const anomalies = r.score.anomalies.map(x=>`<li>⚠️ ${x}</li>`).join('');
+        return `<tr>
+          <td>${r.package.name}<br/><small>${r.package.version}</small></td>
+          <td>${r.score.total}</td>
+          <td><span class="tag ${severityClass(r.score.severity)}">${r.score.severity}</span></td>
+          <td><details><summary>Why</summary><ul>${reasons}${anomalies}</ul></details></td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function loadDefault(){
+      try {
+        const res = await fetch('../reports/report.json');
+        if(res.ok){ report = await res.json(); renderMeta(); renderCharts(); renderTable(); }
+      } catch(e){ console.warn('No report.json loaded', e); }
+    }
+
+    document.querySelectorAll('th[data-sort]').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.sort;
+        if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+        else { sortKey = key; sortDir = 'desc'; }
+        renderTable();
+      });
+    });
+
+    document.getElementById('severity').addEventListener('change', renderTable);
+    document.getElementById('search').addEventListener('input', renderTable);
+    document.getElementById('file').addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { report = JSON.parse(reader.result); renderMeta(); renderCharts(); renderTable(); };
+      reader.readAsText(file);
+    });
+
+    loadDefault();
+  </script>
+</body>
+</html>

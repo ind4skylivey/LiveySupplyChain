@@ -1,0 +1,38 @@
+version: 1
+default_threshold: 75
+weights:
+  vendor_trust: 0.25
+  version_hygiene: 0.15
+  maintenance: 0.15
+  popularity: 0.1
+  script_risk: 0.1
+  binaries: 0.05
+  dependency_posture: 0.1
+  policy_alignment: 0.1
+allowlist:
+  vendors: ["symfony", "laravel"]
+  packages: ["phpunit/phpunit"]
+denylist:
+  vendors: []
+  packages: []
+vendor_classes:
+  tier1: ["symfony/*", "laravel/*"]
+  tier3: ["*"]
+penalties:
+  prerelease: 10
+  abandoned: 25
+  unsigned_dist: 15
+  suspicious_script: 20
+  binary_present: 15
+  stale_version: 10
+bonuses:
+  signed_source: 10
+  maintainer_diversity: 5
+reporting:
+  include_transitives: true
+  redact_urls: false
+severities:
+  critical: 40
+  high: 60
+  medium: 75
+  low: 90

@@ -1,0 +1,31 @@
+{
+  "_readme": ["Dummy fixture"],
+  "content-hash": "abc123",
+  "packages": [
+    {
+      "name": "symfony/console",
+      "version": "v6.0.0",
+      "description": "Symfony Console",
+      "time": "2023-01-01T00:00:00+00:00",
+      "source": {"type": "git", "url": "https://github.com/symfony/console"},
+      "dist": {"type": "zip"},
+      "require": {"php": ">=8.0"},
+      "bin": ["bin/console"],
+      "authors": [{"name": "Fabien"}]
+    }
+  ],
+  "packages-dev": [
+    {
+      "name": "phpunit/phpunit",
+      "version": "9.6.0",
+      "description": "PHPUnit",
+      "time": "2022-06-01T00:00:00+00:00",
+      "source": {"type": "git", "url": "https://github.com/sebastianbergmann/phpunit"},
+      "dist": {"type": "zip"},
+      "require": {"php": ">=8.0"},
+      "bin": ["phpunit"],
+      "authors": [{"name": "Sebastian"}],
+      "abandoned": false
+    }
+  ]
+}
